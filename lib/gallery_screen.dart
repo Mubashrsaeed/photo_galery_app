@@ -58,7 +58,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             // 📁 ADD TO ALBUM
             ListTile(
               leading: const Icon(Icons.folder),
-              title: const Text("ibrar lewanai"),
+              title: const Text("Add to Album"),
               onTap: () {
                 Navigator.pop(bottomContext);
 
