@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:photo_galery_app/video_player_screen.dart';
 import 'package:photo_view/photo_view.dart';
 
 class GalleryScreen extends StatefulWidget {
@@ -20,28 +21,30 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  final List<String> images = [
-    "assets/images/image1.jpeg",
-    "assets/images/image2.jpeg",
-    "assets/images/image3.jpeg",
-    "assets/images/image4.jpeg",
-    "assets/images/image5.jpeg",
-    "assets/images/image6.jpeg",
-    "assets/images/image7.jpeg",
-    "assets/images/image8.jpeg",
-    "assets/images/image9.jpeg",
-    "assets/images/image10.jpeg",
-    "assets/images/image11.jpeg",
-    "assets/images/image12.jpeg",
-    "assets/images/image13.jpeg",
+  final List<Map<String, String>> media = [
+    {"type": "image", "path": "assets/images/image1.jpeg"},
+    {"type": "image", "path": "assets/images/image2.jpeg"},
+    {"type": "image", "path": "assets/images/image3.jpeg"},
+    {"type": "image", "path": "assets/images/image4.jpeg"},
+    {"type": "image", "path": "assets/images/image5.jpeg"},
+    {"type": "image", "path": "assets/images/image6.jpeg"},
+    {"type": "image", "path": "assets/images/image7.jpeg"},
+    {"type": "image", "path": "assets/images/image8.jpeg"},
+    {"type": "image", "path": "assets/images/image9.jpeg"},
+    {"type": "image", "path": "assets/images/image10.jpeg"},
+    {"type": "image", "path": "assets/images/image11.jpeg"},
+    {"type": "image", "path": "assets/images/image12.jpeg"},
+    {"type": "image", "path": "assets/images/image13.jpeg"},
+    {"type": "image", "path": "assets/videos/astore_gilgit.mp4"},
+    {"type": "image", "path": "assets/videos/chunda_valley.mp4"},
   ];
 
   TextEditingController searchController = TextEditingController();
   String query = "";
 
-  List<String> get filteredImages {
-    return images.where((img) {
-      return img.toLowerCase().contains(query);
+  List<Map<String, String>> get filteredMedia {
+    return media.where((item) {
+      return item["path"]!.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -106,7 +109,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 Navigator.pop(bottomContext);
 
                 setState(() {
-                  images.remove(image);
+                  media.remove(image);
                 });
 
                 widget.onToggleFavorite(image); // sync
@@ -155,7 +158,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(10),
-              itemCount: filteredImages.length,
+              itemCount: filteredMedia.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
@@ -163,50 +166,78 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ),
 
               itemBuilder: (context, index) {
-                final image = filteredImages[index];
+                final item = media[index];
+                final path = item["path"]!;
 
                 return GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailScreen(
-                          images: filteredImages,
-                          initialIndex: index,
+                    if (item["type"] == "image") {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailScreen(
+                            images: media
+                                .where((e) => e["type"] == "image")
+                                .map((e) => e["path"]!)
+                                .toList(),
+                            initialIndex: 0,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              VideoPlayerScreen(videoPath: item["path"]!),
+                        ),
+                      );
+                    }
                   },
-
                   onLongPress: () {
-                    showImageActions(context, image);
+                    showImageActions(context, path);
                   },
 
                   child: Stack(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(15),
-                        child: Image.asset(
-                          image,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
+                        child: item["type"] == "image"
+                            ? Image.asset(
+                                item["path"]!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    color: Colors.black26,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                  const Icon(
+                                    Icons.play_circle,
+                                    size: 50,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
                       ),
-
                       // ❤️ FAVORITE BUTTON
                       Positioned(
                         right: 5,
                         top: 5,
                         child: IconButton(
                           icon: Icon(
-                            widget.favorites.contains(image)
+                            widget.favorites.contains(path)
                                 ? Icons.favorite
                                 : Icons.favorite_border,
                             color: Colors.red,
                           ),
                           onPressed: () {
-                            widget.onToggleFavorite(image);
+                            widget.onToggleFavorite(path);
                           },
                         ),
                       ),
