@@ -77,6 +77,19 @@ flutter:
     - assets/images/image11.jpeg
     - assets/images/image12.jpeg
     - assets/images/image13.jpeg
+    - assets/images/image14_aspire_zone_qatar.jpeg
+    - assets/videos/astore_gilgit.mp4
+    - assets/videos/chunda_valley.mp4
+    - assets/videos/bu_hamur.mp4
+    - assets/videos/chitral_meadows.mp4
+    - assets/videos/lusail_qatar.mp4
+    - assets/videos/north_pakistan.mp4
+    - assets/videos/skardu_valley.mp4
+    - assets/videos/video1.mp4
+    - assets/videos/video2.mp4
+
+    
+
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
