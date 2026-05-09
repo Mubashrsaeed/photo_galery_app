@@ -30,6 +30,7 @@ class ThumbnailService {
 
       return thumb;
     } catch (e) {
+      // ignore: avoid_print
       print("Thumbnail Error: $e");
       return null;
     }

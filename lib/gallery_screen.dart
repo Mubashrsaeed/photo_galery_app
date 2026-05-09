@@ -57,7 +57,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     {"type": "video", "path": "assets/videos/video1.mp4"},
     {
       "type": "video",
-      "path": "assets/videos/vido1.mp4",
+      "path": "assets/videos/video1.mp4",
       "thumbnail": "assets/thumbnail/video1.jpg",
     },
   ];

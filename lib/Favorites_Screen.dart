@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:photo_galery_app/thumbnail_service.dart';
 import 'gallery_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
@@ -36,7 +39,44 @@ class FavoritesScreen extends StatelessWidget {
 
           child: ClipRRect(
             borderRadius: BorderRadius.circular(15),
-            child: Image.asset(image, fit: BoxFit.cover),
+            child: image.endsWith(".mp4")
+                ? FutureBuilder(
+                    future: ThumbnailService.generate(image),
+
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Container(
+                          color: Colors.grey.shade300,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.file(File(snapshot.data!), fit: BoxFit.cover),
+
+                          Container(color: Colors.black26),
+
+                          const Center(
+                            child: Icon(
+                              Icons.play_circle_fill,
+                              color: Colors.white,
+                              size: 50,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  )
+                : Image.asset(
+                    image,
+                    fit: BoxFit.cover,
+                    cacheWidth: 250,
+                    cacheHeight: 250,
+                  ),
           ),
         );
       },
