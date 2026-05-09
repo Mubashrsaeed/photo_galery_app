@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:photo_galery_app/Bottom_Navi_Screen.dart';
+import 'package:photo_galery_app/bottom_navi_screen.dart';
 
 void main() {
   runApp(const MyApp());

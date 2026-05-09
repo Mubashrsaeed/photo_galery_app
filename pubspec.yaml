@@ -38,6 +38,8 @@ dependencies:
   photo_view: ^0.14.0
   shared_preferences: ^2.5.5
   video_player: ^2.11.1
+  video_thumbnail: ^0.5.6
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -64,30 +66,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
    
   assets:
-    - assets/images/image1.jpeg
-    - assets/images/image2.jpeg
-    - assets/images/image3.jpeg
-    - assets/images/image4.jpeg
-    - assets/images/image5.jpeg
-    - assets/images/image6.jpeg
-    - assets/images/image7.jpeg
-    - assets/images/image8.jpeg
-    - assets/images/image9.jpeg
-    - assets/images/image10.jpeg
-    - assets/images/image11.jpeg
-    - assets/images/image12.jpeg
-    - assets/images/image13.jpeg
-    - assets/images/image14_aspire_zone_qatar.jpeg
-    - assets/videos/astore_gilgit.mp4
-    - assets/videos/chunda_valley.mp4
-    - assets/videos/bu_hamur.mp4
-    - assets/videos/chitral_meadows.mp4
-    - assets/videos/lusail_qatar.mp4
-    - assets/videos/north_pakistan.mp4
-    - assets/videos/skardu_valley.mp4
-    - assets/videos/video1.mp4
-    - assets/videos/video2.mp4
-
+   - assets/images/
+   - assets/videos/
     
 
 

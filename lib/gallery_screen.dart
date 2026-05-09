@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'thumbnail_service.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_galery_app/video_player_screen.dart';
 import 'package:photo_view/photo_view.dart';
@@ -21,6 +23,14 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
+  late List<Map<String, String>> _cachedMedia;
+
+  @override
+  void initState() {
+    super.initState();
+    _cachedMedia = media;
+  }
+
   final List<Map<String, String>> media = [
     {"type": "image", "path": "assets/images/image1.jpeg"},
     {"type": "image", "path": "assets/images/image2.jpeg"},
@@ -35,15 +45,30 @@ class _GalleryScreenState extends State<GalleryScreen> {
     {"type": "image", "path": "assets/images/image11.jpeg"},
     {"type": "image", "path": "assets/images/image12.jpeg"},
     {"type": "image", "path": "assets/images/image13.jpeg"},
-    {"type": "image", "path": "assets/videos/astore_gilgit.mp4"},
-    {"type": "image", "path": "assets/videos/chunda_valley.mp4"},
+    {"type": "image", "path": "assets/images/image14_aspire_zone_qatar.jpeg"},
+
+    {"type": "video", "path": "assets/videos/astore_gilgit.mp4"},
+    {"type": "video", "path": "assets/videos/chunda_valley.mp4"},
+    {"type": "video", "path": "assets/videos/lusail_qatar.mp4"},
+    {"type": "video", "path": "assets/videos/north_pakistan.mp4"},
+    {"type": "video", "path": "assets/videos/skardu_valley.mp4"},
+    {"type": "video", "path": "assets/videos/bu_hamur.mp4"},
+    {"type": "video", "path": "assets/videos/video2.mp4"},
+    {"type": "video", "path": "assets/videos/video1.mp4"},
+    {
+      "type": "video",
+      "path": "assets/videos/vido1.mp4",
+      "thumbnail": "assets/thumbnail/video1.jpg",
+    },
   ];
 
   TextEditingController searchController = TextEditingController();
   String query = "";
 
   List<Map<String, String>> get filteredMedia {
-    return media.where((item) {
+    if (query.isEmpty) return _cachedMedia;
+
+    return _cachedMedia.where((item) {
       return item["path"]!.toLowerCase().contains(query);
     }).toList();
   }
@@ -109,7 +134,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 Navigator.pop(bottomContext);
 
                 setState(() {
-                  media.remove(image);
+                  media.removeWhere((e) => e["path"] == image);
                 });
 
                 widget.onToggleFavorite(image); // sync
@@ -159,6 +184,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
             child: GridView.builder(
               padding: const EdgeInsets.all(10),
               itemCount: filteredMedia.length,
+              physics: const BouncingScrollPhysics(),
+              cacheExtent: 1000,
+              addAutomaticKeepAlives: true,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
@@ -166,21 +194,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ),
 
               itemBuilder: (context, index) {
-                final item = media[index];
+                final item = filteredMedia[index];
                 final path = item["path"]!;
 
                 return GestureDetector(
                   onTap: () {
                     if (item["type"] == "image") {
+                      final imagesOnly = filteredMedia
+                          .where((e) => e["type"] == "image")
+                          .map((e) => e["path"]!)
+                          .toList();
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => DetailScreen(
-                            images: media
-                                .where((e) => e["type"] == "image")
-                                .map((e) => e["path"]!)
-                                .toList(),
-                            initialIndex: 0,
+                            images: imagesOnly,
+                            initialIndex: imagesOnly.indexOf(path),
                           ),
                         ),
                       );
@@ -188,12 +218,12 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              VideoPlayerScreen(videoPath: item["path"]!),
+                          builder: (_) => VideoPlayerScreen(videoPath: path),
                         ),
                       );
                     }
                   },
+
                   onLongPress: () {
                     showImageActions(context, path);
                   },
@@ -206,23 +236,49 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             ? Image.asset(
                                 item["path"]!,
                                 fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
+
+                                // 🔥 REAL THUMBNAIL SYSTEM
+                                cacheWidth: 250, // controls thumbnail size
+                                cacheHeight: 250,
+
+                                filterQuality:
+                                    FilterQuality.low, // faster rendering
                               )
-                            : Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Container(
-                                    color: Colors.black26,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  ),
-                                  const Icon(
-                                    Icons.play_circle,
-                                    size: 50,
-                                    color: Colors.white,
-                                  ),
-                                ],
+                            : FutureBuilder(
+                                future: ThumbnailService.generate(
+                                  item["path"]!,
+                                ),
+
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return Container(
+                                      color: Colors.grey.shade300,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
+
+                                  return Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.file(
+                                        File(snapshot.data!),
+                                        fit: BoxFit.cover,
+                                      ),
+
+                                      Container(color: Colors.black26),
+
+                                      const Center(
+                                        child: Icon(
+                                          Icons.play_circle_fill,
+                                          size: 55,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                       ),
                       // ❤️ FAVORITE BUTTON
