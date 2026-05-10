@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:photo_galery_app/gallery_screen.dart';
 import 'package:photo_galery_app/thumbnail_service.dart';
-import 'gallery_screen.dart'; // DetailScreen
+import 'package:photo_galery_app/video_player_screen.dart';
 
 class AlbumDetailScreen extends StatefulWidget {
   final String albumName;
@@ -26,7 +27,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   @override
   void initState() {
     super.initState();
-    albumImages = List.from(widget.images); // ✅ FIX HERE
+    albumImages = List.from(widget.images);
   }
 
   void removeImage(String image) {
@@ -43,9 +44,10 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
       appBar: AppBar(title: Text(widget.albumName)),
 
       body: albumImages.isEmpty
-          ? const Center(child: Text("No images in this album"))
+          ? const Center(child: Text("No media in this album"))
           : GridView.builder(
               padding: const EdgeInsets.all(10),
+              cacheExtent: 1000,
               itemCount: albumImages.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
@@ -54,25 +56,42 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               ),
 
               itemBuilder: (context, index) {
-                final image = albumImages[index];
+                final media = albumImages[index];
+                final isVideo = media.endsWith(".mp4");
 
                 return GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailScreen(
-                          images: albumImages,
-                          initialIndex: index,
+                    // ✅ VIDEO OPEN
+                    if (isVideo) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => VideoPlayerScreen(videoPath: media),
                         ),
-                      ),
-                    );
+                      );
+                    }
+                    // ✅ IMAGE OPEN
+                    else {
+                      final imagesOnly = albumImages
+                          .where((e) => !e.endsWith(".mp4"))
+                          .toList();
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailScreen(
+                            images: imagesOnly,
+                            initialIndex: imagesOnly.indexOf(media),
+                          ),
+                        ),
+                      );
+                    }
                   },
 
                   onLongPress: () {
                     showModalBottomSheet(
                       context: context,
-                      builder: (context) {
+                      builder: (_) {
                         return Wrap(
                           children: [
                             ListTile(
@@ -83,7 +102,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                               title: const Text("Remove from Album"),
                               onTap: () {
                                 Navigator.pop(context);
-                                removeImage(image);
+                                removeImage(media);
                               },
                             ),
                           ],
@@ -94,16 +113,28 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(15),
-                    child: image.endsWith(".mp4")
-                        ? FutureBuilder(
-                            future: ThumbnailService.generate(image),
+
+                    child: isVideo
+                        // ✅ VIDEO THUMBNAIL
+                        ? FutureBuilder<String?>(
+                            future: ThumbnailService.generate(media),
 
                             builder: (context, snapshot) {
-                              if (!snapshot.hasData) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
                                 return Container(
                                   color: Colors.grey.shade300,
                                   child: const Center(
                                     child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+
+                              if (!snapshot.hasData || snapshot.data == null) {
+                                return Container(
+                                  color: Colors.black12,
+                                  child: const Center(
+                                    child: Icon(Icons.video_library, size: 50),
                                   ),
                                 );
                               }
@@ -114,6 +145,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                                   Image.file(
                                     File(snapshot.data!),
                                     fit: BoxFit.cover,
+                                    cacheWidth: 300,
+                                    cacheHeight: 300,
                                   ),
 
                                   Container(color: Colors.black26),
@@ -129,11 +162,13 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                               );
                             },
                           )
+                        // ✅ IMAGE
                         : Image.asset(
-                            image,
+                            media,
                             fit: BoxFit.cover,
-                            cacheWidth: 250,
-                            cacheHeight: 250,
+                            cacheWidth: 300,
+                            cacheHeight: 300,
+                            filterQuality: FilterQuality.low,
                           ),
                   ),
                 );

@@ -18,8 +18,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
 
     controller = VideoPlayerController.asset(widget.videoPath)
-      ..initialize().then((_) {
-        setState(() {});
+      ..initialize().then((_) async {
+        await controller.setLooping(true);
+
+        if (mounted) {
+          setState(() {});
+        }
+
         controller.play();
       });
   }

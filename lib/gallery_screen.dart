@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'thumbnail_service.dart';
+
 import 'package:flutter/material.dart';
+import 'package:photo_galery_app/thumbnail_service.dart';
 import 'package:photo_galery_app/video_player_screen.dart';
 import 'package:photo_view/photo_view.dart';
 
@@ -23,14 +24,6 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  late List<Map<String, String>> _cachedMedia;
-
-  @override
-  void initState() {
-    super.initState();
-    _cachedMedia = media;
-  }
-
   final List<Map<String, String>> media = [
     {"type": "image", "path": "assets/images/image1.jpeg"},
     {"type": "image", "path": "assets/images/image2.jpeg"},
@@ -55,20 +48,13 @@ class _GalleryScreenState extends State<GalleryScreen> {
     {"type": "video", "path": "assets/videos/bu_hamur.mp4"},
     {"type": "video", "path": "assets/videos/video2.mp4"},
     {"type": "video", "path": "assets/videos/video1.mp4"},
-    {
-      "type": "video",
-      "path": "assets/videos/video1.mp4",
-      "thumbnail": "assets/thumbnail/video1.jpg",
-    },
   ];
 
   TextEditingController searchController = TextEditingController();
   String query = "";
 
   List<Map<String, String>> get filteredMedia {
-    if (query.isEmpty) return _cachedMedia;
-
-    return _cachedMedia.where((item) {
+    return media.where((item) {
       return item["path"]!.toLowerCase().contains(query);
     }).toList();
   }
@@ -182,11 +168,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
           // ❤️ FAVORITE BUTTON
           Expanded(
             child: GridView.builder(
+              cacheExtent: 1000,
               padding: const EdgeInsets.all(10),
               itemCount: filteredMedia.length,
               physics: const BouncingScrollPhysics(),
-              cacheExtent: 1000,
-              addAutomaticKeepAlives: true,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
@@ -236,25 +221,31 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             ? Image.asset(
                                 item["path"]!,
                                 fit: BoxFit.cover,
-
-                                // 🔥 REAL THUMBNAIL SYSTEM
-                                cacheWidth: 250, // controls thumbnail size
-                                cacheHeight: 250,
-
-                                filterQuality:
-                                    FilterQuality.low, // faster rendering
+                                width: double.infinity,
+                                height: double.infinity,
+                                cacheWidth: 300,
+                                cacheHeight: 300,
+                                filterQuality: FilterQuality.low,
                               )
-                            : FutureBuilder(
-                                future: ThumbnailService.generate(
-                                  item["path"]!,
-                                ),
-
+                            : FutureBuilder<String?>(
+                                future: ThumbnailService.generate(path),
                                 builder: (context, snapshot) {
-                                  if (!snapshot.hasData) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
                                     return Container(
                                       color: Colors.grey.shade300,
                                       child: const Center(
                                         child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
+
+                                  if (!snapshot.hasData ||
+                                      snapshot.data == null) {
+                                    return Container(
+                                      color: Colors.black12,
+                                      child: const Center(
+                                        child: Icon(Icons.video_library),
                                       ),
                                     );
                                   }
@@ -272,7 +263,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                       const Center(
                                         child: Icon(
                                           Icons.play_circle_fill,
-                                          size: 55,
+                                          size: 50,
                                           color: Colors.white,
                                         ),
                                       ),
@@ -377,7 +368,10 @@ class _DetailScreenState extends State<DetailScreen> {
 
               child: PhotoView(
                 controller: _photoViewController,
-                imageProvider: AssetImage(widget.images[index]),
+                imageProvider: ResizeImage(
+                  AssetImage(widget.images[index]),
+                  width: 1200,
+                ),
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: PhotoViewComputedScale.covered * 3,
               ),

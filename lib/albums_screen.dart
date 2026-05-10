@@ -14,20 +14,56 @@ class AlbumsScreen extends StatelessWidget {
   });
 
   Widget _buildCollage(List<String> images) {
-    if (images.length == 1) {
-      return Image.asset(images[0], fit: BoxFit.cover);
+    if (images.isEmpty) {
+      return const Center(child: Icon(Icons.folder, size: 50));
     }
 
+    // ✅ VIDEO SUPPORT
+    if (images.first.endsWith(".mp4")) {
+      return Container(
+        color: Colors.black12,
+        child: const Center(
+          child: Icon(Icons.play_circle_fill, size: 60, color: Colors.black54),
+        ),
+      );
+    }
+
+    // ✅ SINGLE IMAGE
+    if (images.length == 1) {
+      return Image.asset(
+        images[0],
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
+        filterQuality: FilterQuality.low,
+      );
+    }
+
+    // ✅ TWO IMAGES
     if (images.length == 2) {
       return Row(
         children: [
-          Expanded(child: Image.asset(images[0], fit: BoxFit.cover)),
-          Expanded(child: Image.asset(images[1], fit: BoxFit.cover)),
+          Expanded(
+            child: Image.asset(
+              images[0],
+              fit: BoxFit.cover,
+              cacheWidth: 300,
+              cacheHeight: 300,
+            ),
+          ),
+          Expanded(
+            child: Image.asset(
+              images[1],
+              fit: BoxFit.cover,
+              cacheWidth: 300,
+              cacheHeight: 300,
+            ),
+          ),
         ],
       );
     }
 
-    // 🔥 3+ images (Google Photos style)
+    // ✅ THREE+ IMAGES
     return Column(
       children: [
         Expanded(
@@ -35,13 +71,29 @@ class AlbumsScreen extends StatelessWidget {
             images[0],
             fit: BoxFit.cover,
             width: double.infinity,
+            cacheWidth: 300,
+            cacheHeight: 300,
           ),
         ),
         Expanded(
           child: Row(
             children: [
-              Expanded(child: Image.asset(images[1], fit: BoxFit.cover)),
-              Expanded(child: Image.asset(images[2], fit: BoxFit.cover)),
+              Expanded(
+                child: Image.asset(
+                  images[1],
+                  fit: BoxFit.cover,
+                  cacheWidth: 300,
+                  cacheHeight: 300,
+                ),
+              ),
+              Expanded(
+                child: Image.asset(
+                  images[2],
+                  fit: BoxFit.cover,
+                  cacheWidth: 300,
+                  cacheHeight: 300,
+                ),
+              ),
             ],
           ),
         ),

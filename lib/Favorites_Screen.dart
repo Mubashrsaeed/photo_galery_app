@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:photo_galery_app/thumbnail_service.dart';
+import 'package:photo_galery_app/video_player_screen.dart';
 import 'gallery_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
@@ -16,6 +17,7 @@ class FavoritesScreen extends StatelessWidget {
     }
 
     return GridView.builder(
+      cacheExtent: 1000,
       padding: const EdgeInsets.all(10),
       itemCount: favoriteImages.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -28,13 +30,32 @@ class FavoritesScreen extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    DetailScreen(images: favoriteImages, initialIndex: index),
-              ),
-            );
+            if (image.endsWith(".mp4")) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VideoPlayerScreen(videoPath: image),
+                ),
+              );
+            } else {
+              favoriteImages.where((e) => !e.endsWith(".mp4")).toList();
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DetailScreen(
+                    images: favoriteImages
+                        .where((e) => !e.endsWith(".mp4"))
+                        .toList(),
+
+                    initialIndex: favoriteImages
+                        .where((e) => !e.endsWith(".mp4"))
+                        .toList()
+                        .indexOf(image),
+                  ),
+                ),
+              );
+            }
           },
 
           child: ClipRRect(
@@ -42,7 +63,6 @@ class FavoritesScreen extends StatelessWidget {
             child: image.endsWith(".mp4")
                 ? FutureBuilder(
                     future: ThumbnailService.generate(image),
-
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
                         return Container(
@@ -56,7 +76,13 @@ class FavoritesScreen extends StatelessWidget {
                       return Stack(
                         fit: StackFit.expand,
                         children: [
-                          Image.file(File(snapshot.data!), fit: BoxFit.cover),
+                          Image.file(
+                            File(snapshot.data!),
+                            fit: BoxFit.cover,
+                            cacheWidth: 250,
+                            cacheHeight: 250,
+                            filterQuality: FilterQuality.low,
+                          ),
 
                           Container(color: Colors.black26),
 
