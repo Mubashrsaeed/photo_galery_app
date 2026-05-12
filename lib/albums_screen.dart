@@ -5,12 +5,16 @@ class AlbumsScreen extends StatelessWidget {
   final Map<String, List<String>> albums;
   final Function(String) onCreateAlbum;
   final Function(String, String) onRemoveFromAlbum;
+  final Function(String oldName, String newName) onRenameAlbum;
+  final Function(String albumName) onDeleteAlbum;
 
   const AlbumsScreen({
     super.key,
     required this.albums,
     required this.onCreateAlbum,
     required this.onRemoveFromAlbum,
+    required this.onRenameAlbum,
+    required this.onDeleteAlbum,
   });
 
   Widget _buildCollage(List<String> images) {
@@ -101,6 +105,40 @@ class AlbumsScreen extends StatelessWidget {
     );
   }
 
+  // ----------------  RENAME DIALOG FUNCTION  ----------------
+
+  void _renameAlbum(BuildContext context, String oldName) {
+    TextEditingController controller = TextEditingController(text: oldName);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Rename Album"),
+          content: TextField(controller: controller),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                final newName = controller.text.trim();
+
+                if (newName.isNotEmpty && newName != oldName) {
+                  onRenameAlbum(oldName, newName);
+                }
+
+                Navigator.pop(context);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,42 +203,86 @@ class AlbumsScreen extends StatelessWidget {
               );
             },
 
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              elevation: 4,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 📸 IMAGE COLLAGE
-                  Expanded(
-                    child: images.isEmpty
-                        ? const Center(child: Icon(Icons.folder, size: 50))
-                        : ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(15),
-                            ),
-                            child: _buildCollage(images),
-                          ),
-                  ),
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AlbumDetailScreen(
+                          albumName: albumName,
+                          images: List.from(images),
+                          onRemove: onRemoveFromAlbum,
+                        ),
+                      ),
+                    );
+                  },
 
-                  // 📝 TEXT INFO
-                  Padding(
-                    padding: const EdgeInsets.all(8),
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    elevation: 4,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          albumName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        // 📸 IMAGE COLLAGE
+                        Expanded(
+                          child: images.isEmpty
+                              ? const Center(
+                                  child: Icon(Icons.folder, size: 50),
+                                )
+                              : ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(15),
+                                  ),
+                                  child: _buildCollage(images),
+                                ),
                         ),
-                        Text("${images.length} images"),
+
+                        // 📝 TEXT INFO
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                albumName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text("${images.length} images"),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == "rename") {
+                        _renameAlbum(context, albumName);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: "rename",
+                        child: Text("Rename"),
+                      ),
+                      const PopupMenuItem(
+                        value: "delete",
+                        child: Text("Delete"),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },

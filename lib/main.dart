@@ -2,7 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:photo_galery_app/bottom_navi_screen.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return const Material(
+      child: Center(
+        child: Text(
+          "Something went wrong",
+          style: TextStyle(color: Colors.red),
+        ),
+      ),
+    );
+  };
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+
+    debugPrint("FLUTTER ERROR: ${details.exception}");
+  };
+
   runApp(const MyApp());
 }
 

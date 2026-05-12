@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:photo_galery_app/recycle_bin_model.dart';
+import 'package:photo_galery_app/recycle_bin_service.dart';
 import 'package:photo_galery_app/thumbnail_service.dart';
 import 'package:photo_galery_app/video_player_screen.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:photo_galery_app/recycle_bin_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   final Set<String> favorites;
@@ -24,6 +27,9 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
+  Set<String> selectedItems = {};
+  bool selectionMode = false;
+
   final List<Map<String, String>> media = [
     {"type": "image", "path": "assets/images/image1.jpeg"},
     {"type": "image", "path": "assets/images/image2.jpeg"},
@@ -49,13 +55,146 @@ class _GalleryScreenState extends State<GalleryScreen> {
     {"type": "video", "path": "assets/videos/video2.mp4"},
     {"type": "video", "path": "assets/videos/video1.mp4"},
   ];
+  final Map<String, Future<String?>> _thumbCache = {};
+  final List<File> deleteedFiles = [];
+
+  Future<String?> _thumbnailFuture(String path) {
+    if (!_thumbCache.containsKey(path)) {
+      _thumbCache[path] = ThumbnailService.generate(path);
+    }
+
+    return _thumbCache[path]!;
+  }
+
+  void toggleSelection(String path) {
+    setState(() {
+      if (selectedItems.contains(path)) {
+        selectedItems.remove(path);
+
+        if (selectedItems.isEmpty) {
+          selectionMode = false;
+        }
+      } else {
+        selectedItems.add(path);
+        selectionMode = true;
+      }
+    });
+  }
+
+  void toggleSelectAll() {
+    setState(() {
+      final allItems = filteredMedia.map((e) => e["path"]!).toSet();
+
+      if (selectedItems.length == allItems.length) {
+        // UNSELECT ALL
+        selectedItems.clear();
+        selectionMode = false;
+      } else {
+        // SELECT ALL
+        selectedItems = allItems;
+        selectionMode = true;
+      }
+    });
+  }
+
+  void clearSelection() {
+    setState(() {
+      selectedItems.clear();
+      selectionMode = false;
+    });
+  }
+
+  void deleteSelectedItems() async {
+    for (String path in selectedItems) {
+      final item = media.firstWhere(
+        (e) => e["path"] == path,
+        orElse: () => {"type": "image"},
+      );
+
+      await RecycleBinService.addToRecycleBin(
+        RecycleBinItem(
+          path: path,
+          type: item["type"]!,
+          deletedAt: DateTime.now(),
+        ),
+      );
+    }
+
+    setState(() {
+      media.removeWhere((e) => selectedItems.contains(e["path"]));
+
+      selectedItems.clear();
+      selectionMode = false;
+    });
+
+    // ignore: use_build_context_synchronously
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Selected items moved to Recycle Bin")),
+    );
+  }
+
+  void addSelectedToFavorites() {
+    for (String path in selectedItems) {
+      if (!widget.favorites.contains(path)) {
+        widget.onToggleFavorite(path);
+      }
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Added to Favorites")));
+
+    clearSelection();
+  }
+
+  void addSelectedToAlbum() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Wrap(
+          children: widget.albums.keys.map((album) {
+            return ListTile(
+              leading: const Icon(Icons.folder),
+              title: Text(album),
+              onTap: () {
+                for (String path in selectedItems) {
+                  widget.onAddToAlbum(album, path);
+                }
+
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Added ${selectedItems.length} items to $album",
+                    ),
+                  ),
+                );
+
+                clearSelection();
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  void shareSelectedItems() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Sharing ${selectedItems.length} items")),
+    );
+
+    clearSelection();
+  }
 
   TextEditingController searchController = TextEditingController();
   String query = "";
 
   List<Map<String, String>> get filteredMedia {
     return media.where((item) {
-      return item["path"]!.toLowerCase().contains(query);
+      return item["path"]!.toLowerCase().contains(query) ||
+          item["type"]!.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -116,18 +255,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
               title: const Text("Delete"),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(bottomContext);
+
+                final item = media.firstWhere(
+                  (e) => e["path"] == image,
+                  orElse: () => {"type": "image"},
+                );
+
+                // ignore: avoid_print
+                debugPrint("ADDING TO RECYCLE BIN: $image");
+
+                await RecycleBinService.addToRecycleBin(
+                  RecycleBinItem(
+                    path: image,
+                    type: item["type"]!,
+                    deletedAt: DateTime.now(),
+                  ),
+                );
 
                 setState(() {
                   media.removeWhere((e) => e["path"] == image);
                 });
 
-                widget.onToggleFavorite(image); // sync
-
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("Deleted")));
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Moved to Recycle Bin")),
+                );
               },
             ),
           ],
@@ -140,11 +294,65 @@ class _GalleryScreenState extends State<GalleryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Gallery"),
-        centerTitle: true,
         backgroundColor: Colors.deepPurpleAccent,
-      ),
 
+        title: selectionMode
+            ? Text("${selectedItems.length} Selected")
+            : const Text("Gallery"),
+
+        centerTitle: true,
+
+        leading: selectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: clearSelection,
+              )
+            : null,
+
+        actions: [
+          if (selectionMode) ...[
+            IconButton(
+              icon: Icon(
+                selectedItems.length == filteredMedia.length
+                    ? Icons.deselect
+                    : Icons.select_all,
+              ),
+              onPressed: toggleSelectAll,
+            ),
+            IconButton(
+              icon: const Icon(Icons.favorite),
+              onPressed: addSelectedToFavorites,
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.folder),
+              onPressed: addSelectedToAlbum,
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: shareSelectedItems,
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: deleteSelectedItems,
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecycleBinScreen(deletedFiles: []),
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
       body: Column(
         children: [
           // 🔍 SEARCH
@@ -184,6 +392,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
                 return GestureDetector(
                   onTap: () {
+                    if (selectionMode) {
+                      toggleSelection(path);
+                      return;
+                    }
+
                     if (item["type"] == "image") {
                       final imagesOnly = filteredMedia
                           .where((e) => e["type"] == "image")
@@ -210,9 +423,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   },
 
                   onLongPress: () {
-                    showImageActions(context, path);
+                    toggleSelection(path);
                   },
-
                   child: Stack(
                     children: [
                       ClipRRect(
@@ -228,7 +440,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                 filterQuality: FilterQuality.low,
                               )
                             : FutureBuilder<String?>(
-                                future: ThumbnailService.generate(path),
+                                future: _thumbnailFuture(path),
                                 builder: (context, snapshot) {
                                   if (snapshot.connectionState ==
                                       ConnectionState.waiting) {
@@ -256,6 +468,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                       Image.file(
                                         File(snapshot.data!),
                                         fit: BoxFit.cover,
+                                        gaplessPlayback: true,
                                       ),
 
                                       Container(color: Colors.black26),
@@ -272,6 +485,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                 },
                               ),
                       ),
+
                       // ❤️ FAVORITE BUTTON
                       Positioned(
                         right: 5,
@@ -284,10 +498,31 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             color: Colors.red,
                           ),
                           onPressed: () {
-                            widget.onToggleFavorite(path);
+                            final isFav = widget.favorites.contains(path);
+
+                            if (isFav) {
+                              widget.onToggleFavorite(path); // remove
+                            } else {
+                              widget.onToggleFavorite(path); // add
+                            }
                           },
                         ),
                       ),
+
+                      if (selectionMode)
+                        Positioned(
+                          left: 5,
+                          top: 5,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white,
+                            child: Icon(
+                              selectedItems.contains(path)
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: Colors.deepPurple,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );

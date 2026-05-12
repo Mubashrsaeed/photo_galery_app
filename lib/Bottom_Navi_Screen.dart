@@ -18,6 +18,21 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   // ✅ ALBUMS (SOURCE OF TRUTH)
   Map<String, List<String>> albums = {};
 
+  void deleteAlbum(String albumName) {
+    setState(() {
+      albums.remove(albumName);
+    });
+  }
+
+  void renameAlbum(String oldName, String newName) {
+    if (albums.containsKey(oldName)) {
+      setState(() {
+        albums[newName] = albums[oldName]!;
+        albums.remove(oldName);
+      });
+    }
+  }
+
   void createAlbum(String name) {
     setState(() {
       albums[name] = [];
@@ -65,7 +80,9 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       // 👈 NEW SCREEN
       albums: albums,
       onCreateAlbum: createAlbum,
-      onRemoveFromAlbum: removeFromAlbum, // 👈 MUST EXIST
+      onRemoveFromAlbum: removeFromAlbum,
+      onRenameAlbum: renameAlbum,
+      onDeleteAlbum: deleteAlbum,
     ),
   ];
 
