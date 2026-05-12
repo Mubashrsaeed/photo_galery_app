@@ -17,87 +17,40 @@ class AlbumsScreen extends StatelessWidget {
     required this.onDeleteAlbum,
   });
 
+  // ---------------- COLLAGE ----------------
+
   Widget _buildCollage(List<String> images) {
     if (images.isEmpty) {
       return const Center(child: Icon(Icons.folder, size: 50));
     }
 
-    // ✅ VIDEO SUPPORT
     if (images.first.endsWith(".mp4")) {
-      return Container(
-        color: Colors.black12,
-        child: const Center(
-          child: Icon(Icons.play_circle_fill, size: 60, color: Colors.black54),
-        ),
+      return const Center(
+        child: Icon(Icons.play_circle_fill, size: 60, color: Colors.black54),
       );
     }
 
-    // ✅ SINGLE IMAGE
     if (images.length == 1) {
-      return Image.asset(
-        images[0],
-        fit: BoxFit.cover,
-        cacheWidth: 300,
-        cacheHeight: 300,
-        filterQuality: FilterQuality.low,
-      );
+      return Image.asset(images[0], fit: BoxFit.cover);
     }
 
-    // ✅ TWO IMAGES
     if (images.length == 2) {
       return Row(
         children: [
-          Expanded(
-            child: Image.asset(
-              images[0],
-              fit: BoxFit.cover,
-              cacheWidth: 300,
-              cacheHeight: 300,
-            ),
-          ),
-          Expanded(
-            child: Image.asset(
-              images[1],
-              fit: BoxFit.cover,
-              cacheWidth: 300,
-              cacheHeight: 300,
-            ),
-          ),
+          Expanded(child: Image.asset(images[0], fit: BoxFit.cover)),
+          Expanded(child: Image.asset(images[1], fit: BoxFit.cover)),
         ],
       );
     }
 
-    // ✅ THREE+ IMAGES
     return Column(
       children: [
-        Expanded(
-          child: Image.asset(
-            images[0],
-            fit: BoxFit.cover,
-            width: double.infinity,
-            cacheWidth: 300,
-            cacheHeight: 300,
-          ),
-        ),
+        Expanded(child: Image.asset(images[0], fit: BoxFit.cover)),
         Expanded(
           child: Row(
             children: [
-              Expanded(
-                child: Image.asset(
-                  images[1],
-                  fit: BoxFit.cover,
-                  cacheWidth: 300,
-                  cacheHeight: 300,
-                ),
-              ),
-              Expanded(
-                child: Image.asset(
-                  images[2],
-                  fit: BoxFit.cover,
-                  cacheWidth: 300,
-                  cacheHeight: 300,
-                ),
-              ),
+              Expanded(child: Image.asset(images[1], fit: BoxFit.cover)),
+              Expanded(child: Image.asset(images[2], fit: BoxFit.cover)),
             ],
           ),
         ),
@@ -105,7 +58,7 @@ class AlbumsScreen extends StatelessWidget {
     );
   }
 
-  // ----------------  RENAME DIALOG FUNCTION  ----------------
+  // ---------------- RENAME ----------------
 
   void _renameAlbum(BuildContext context, String oldName) {
     TextEditingController controller = TextEditingController(text: oldName);
@@ -139,6 +92,35 @@ class AlbumsScreen extends StatelessWidget {
     );
   }
 
+  // ---------------- DELETE CONFIRMATION ----------------
+
+  void _deleteAlbum(BuildContext context, String albumName) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Delete Album"),
+          content: Text("Are you sure you want to delete '$albumName'?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                onDeleteAlbum(albumName); // ✅ REAL DELETE
+                Navigator.pop(context);
+              },
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ---------------- UI ----------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,24 +128,22 @@ class AlbumsScreen extends StatelessWidget {
 
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          TextEditingController controller = TextEditingController();
+
           showDialog(
             context: context,
             builder: (context) {
-              TextEditingController controller = TextEditingController();
-
               return AlertDialog(
                 title: const Text("Create Album"),
                 content: TextField(controller: controller),
                 actions: [
                   TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     child: const Text("Cancel"),
                   ),
                   TextButton(
                     onPressed: () {
-                      onCreateAlbum(controller.text);
+                      onCreateAlbum(controller.text.trim());
                       Navigator.pop(context);
                     },
                     child: const Text("Create"),
@@ -185,105 +165,84 @@ class AlbumsScreen extends StatelessWidget {
           mainAxisSpacing: 10,
           childAspectRatio: 0.9,
         ),
+
         itemBuilder: (context, index) {
           final albumName = albums.keys.elementAt(index);
           final images = albums[albumName] ?? [];
 
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AlbumDetailScreen(
-                    albumName: albumName,
-                    images: List.from(images),
-                    onRemove: onRemoveFromAlbum,
-                  ),
-                ),
-              );
-            },
-
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AlbumDetailScreen(
-                          albumName: albumName,
-                          images: List.from(images),
-                          onRemove: onRemoveFromAlbum,
-                        ),
+          return Stack(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AlbumDetailScreen(
+                        albumName: albumName,
+                        images: List.from(images),
+                        onRemove: onRemoveFromAlbum,
                       ),
-                    );
-                  },
-
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
                     ),
-                    elevation: 4,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 📸 IMAGE COLLAGE
-                        Expanded(
-                          child: images.isEmpty
-                              ? const Center(
-                                  child: Icon(Icons.folder, size: 50),
-                                )
-                              : ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(15),
-                                  ),
-                                  child: _buildCollage(images),
-                                ),
-                        ),
+                  );
+                },
 
-                        // 📝 TEXT INFO
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                albumName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text("${images.length} images"),
-                            ],
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  elevation: 4,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(15),
                           ),
+                          child: _buildCollage(images),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 5,
-                  right: 5,
-                  child: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == "rename") {
-                        _renameAlbum(context, albumName);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: "rename",
-                        child: Text("Rename"),
                       ),
-                      const PopupMenuItem(
-                        value: "delete",
-                        child: Text("Delete"),
+
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              albumName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text("${images.length} images"),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+
+              // ---------------- MENU ----------------
+              Positioned(
+                top: 5,
+                right: 5,
+                child: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == "rename") {
+                      _renameAlbum(context, albumName);
+                    }
+
+                    if (value == "delete") {
+                      _deleteAlbum(context, albumName); // ✅ FIXED
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: "rename", child: Text("Rename")),
+                    PopupMenuItem(value: "delete", child: Text("Delete")),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),

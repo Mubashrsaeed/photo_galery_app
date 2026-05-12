@@ -21,6 +21,9 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   void deleteAlbum(String albumName) {
     setState(() {
       albums.remove(albumName);
+      albums = Map.from(albums);
+      print("Deleting album: $albumName");
+      print(albums.keys);
     });
   }
 

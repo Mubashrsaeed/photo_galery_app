@@ -22,6 +22,7 @@ class AlbumDetailScreen extends StatefulWidget {
 
 class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   late List<String> albumImages;
+  Map<String, List<String>> albums = {};
 
   Set<String> selectedItems = {};
   bool selectionMode = false;
@@ -30,6 +31,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   void initState() {
     super.initState();
     albumImages = List.from(widget.images);
+  }
+
+  void deleteAlbum(String albumName) {
+    setState(() {
+      albums.remove(albumName);
+    });
   }
 
   // ---------------- SELECTION ----------------
