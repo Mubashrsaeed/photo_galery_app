@@ -103,7 +103,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => VideoPlayerScreen(videoPath: image),
+                    builder: (_) => VideoDetailScreen(
+                      videoList: widget.favoriteImages,
+                      initialIndex: widget.favoriteImages.indexOf(image),
+                    ),
                   ),
                 );
               } else {

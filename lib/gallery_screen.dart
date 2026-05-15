@@ -1,5 +1,6 @@
+import 'dart:async';
 import 'dart:io';
-
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:photo_galery_app/recycle_bin_model.dart';
 import 'package:photo_galery_app/recycle_bin_service.dart';
@@ -7,6 +8,7 @@ import 'package:photo_galery_app/thumbnail_service.dart';
 import 'package:photo_galery_app/video_player_screen.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_galery_app/recycle_bin_screen.dart';
+import 'package:video_player/video_player.dart';
 
 class GalleryScreen extends StatefulWidget {
   final Set<String> favorites;
@@ -58,6 +60,30 @@ class _GalleryScreenState extends State<GalleryScreen> {
   final Map<String, Future<String?>> _thumbCache = {};
   final List<File> deleteedFiles = [];
 
+  List<String> get videoList {
+    return media
+        .where((e) => e["type"] == "video")
+        .map((e) => e["path"]!)
+        .toList();
+  }
+
+  Future<Size> getImageResolution(String assetPath) async {
+    final image = AssetImage(assetPath);
+    final completer = Completer<ui.Image>();
+
+    image
+        .resolve(const ImageConfiguration())
+        .addListener(
+          ImageStreamListener((info, _) {
+            completer.complete(info.image);
+          }),
+        );
+
+    final img = await completer.future;
+    return Size(img.width.toDouble(), img.height.toDouble());
+  }
+
+  // ignore: unused_element
   Future<String?> _thumbnailFuture(String path) {
     if (!_thumbCache.containsKey(path)) {
       _thumbCache[path] = ThumbnailService.generate(path);
@@ -376,7 +402,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
           // ❤️ FAVORITE BUTTON
           Expanded(
             child: GridView.builder(
-              cacheExtent: 1000,
+              cacheExtent: 200,
               padding: const EdgeInsets.all(10),
               itemCount: filteredMedia.length,
               physics: const BouncingScrollPhysics(),
@@ -397,26 +423,27 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       return;
                     }
 
+                    // IMAGE
                     if (item["type"] == "image") {
-                      final imagesOnly = filteredMedia
-                          .where((e) => e["type"] == "image")
-                          .map((e) => e["path"]!)
-                          .toList();
-
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => DetailScreen(
-                            images: imagesOnly,
-                            initialIndex: imagesOnly.indexOf(path),
+                            images: [path], // ONLY CURRENT IMAGE
+                            initialIndex: 0,
                           ),
                         ),
                       );
-                    } else {
+                    }
+                    // VIDEO
+                    else {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => VideoPlayerScreen(videoPath: path),
+                          builder: (_) => VideoDetailScreen(
+                            videoList: videoList,
+                            initialIndex: videoList.indexOf(path),
+                          ),
                         ),
                       );
                     }
@@ -435,52 +462,51 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                                 height: double.infinity,
-                                cacheWidth: 300,
-                                cacheHeight: 300,
-                                filterQuality: FilterQuality.low,
+                                cacheWidth: 200,
+                                cacheHeight: 200,
+                                filterQuality: FilterQuality.none,
                               )
-                            : FutureBuilder<String?>(
-                                future: _thumbnailFuture(path),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
+                            : Builder(
+                                builder: (context) {
+                                  final thumbFuture = _thumbCache[path];
+
+                                  if (thumbFuture == null) {
                                     return Container(
-                                      color: Colors.grey.shade300,
+                                      color: Colors.black12,
                                       child: const Center(
                                         child: CircularProgressIndicator(),
                                       ),
                                     );
                                   }
 
-                                  if (!snapshot.hasData ||
-                                      snapshot.data == null) {
-                                    return Container(
-                                      color: Colors.black12,
-                                      child: const Center(
-                                        child: Icon(Icons.video_library),
-                                      ),
-                                    );
-                                  }
+                                  return FutureBuilder<String?>(
+                                    future: thumbFuture,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return Container(
+                                          color: Colors.black12,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        );
+                                      }
 
-                                  return Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.file(
+                                      if (!snapshot.hasData ||
+                                          snapshot.data == null) {
+                                        return Container(
+                                          color: Colors.black12,
+                                          child: const Icon(
+                                            Icons.video_library,
+                                          ),
+                                        );
+                                      }
+
+                                      return Image.file(
                                         File(snapshot.data!),
                                         fit: BoxFit.cover,
-                                        gaplessPlayback: true,
-                                      ),
-
-                                      Container(color: Colors.black26),
-
-                                      const Center(
-                                        child: Icon(
-                                          Icons.play_circle_fill,
-                                          size: 50,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   );
                                 },
                               ),
@@ -490,22 +516,128 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       Positioned(
                         right: 5,
                         top: 5,
-                        child: IconButton(
-                          icon: Icon(
-                            widget.favorites.contains(path)
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: Colors.red,
-                          ),
-                          onPressed: () {
-                            final isFav = widget.favorites.contains(path);
+                        child: Column(
+                          children: [
+                            // FAVORITE
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: IconButton(
+                                icon: Icon(
+                                  widget.favorites.contains(path)
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () {
+                                  final isFav = widget.favorites.contains(path);
 
-                            if (isFav) {
-                              widget.onToggleFavorite(path); // remove
-                            } else {
-                              widget.onToggleFavorite(path); // add
-                            }
-                          },
+                                  if (isFav) {
+                                    widget.onToggleFavorite(path);
+                                  } else {
+                                    widget.onToggleFavorite(path);
+                                  }
+                                },
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            // INFO BUTTON
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.info_outline,
+                                  color: Colors.white,
+                                ),
+
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    builder: (context) {
+                                      // IMAGE INFO
+                                      if (item["type"] == "image") {
+                                        return FutureBuilder<Size>(
+                                          future: getImageResolution(path),
+                                          builder: (context, snapshot) {
+                                            return Container(
+                                              padding: const EdgeInsets.all(16),
+                                              height: 220,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    "Image Details",
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 15),
+                                                  Text("📁 Path: $path"),
+                                                  const SizedBox(height: 10),
+                                                  const Text("🖼 Type: Image"),
+                                                  const SizedBox(height: 10),
+
+                                                  if (snapshot
+                                                          .connectionState ==
+                                                      ConnectionState.waiting)
+                                                    const CircularProgressIndicator()
+                                                  else if (snapshot.hasData)
+                                                    Text(
+                                                      "📐 Resolution: "
+                                                      "${snapshot.data!.width.toInt()} x "
+                                                      "${snapshot.data!.height.toInt()}",
+                                                    )
+                                                  else
+                                                    const Text("No resolution"),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      }
+
+                                      // VIDEO INFO (NO IMAGE FUNCTION HERE!)
+                                      return Container(
+                                        padding: const EdgeInsets.all(16),
+                                        height: 220,
+                                        child: const Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Video Details",
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            SizedBox(height: 15),
+                                            Text("📁 Path: video file"),
+                                            SizedBox(height: 10),
+                                            Text("🎥 Type: Video"),
+                                            SizedBox(height: 10),
+                                            Text(
+                                              "⚠ Safe mode: no decoding (prevents crash)",
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -552,6 +684,82 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late PageController controller;
   late PhotoViewController _photoViewController;
+  Map<String, Size> resolutionCache = {};
+
+  Future<Map<String, dynamic>> getVideoInfo(String path) async {
+    return {
+      "resolution": "Unknown (asset videos don't expose metadata easily)",
+      "note": "Video resolution requires video decoding plugin (expensive)",
+    };
+  }
+
+  Future<Map<String, dynamic>> getImageInfo(String path) async {
+    final file = File(path);
+
+    if (!await file.exists()) return {};
+
+    final sizeInBytes = await file.length();
+    final sizeInKB = sizeInBytes / 1024;
+    final sizeInMB = sizeInKB / 1024;
+
+    return {
+      "size": sizeInMB > 1
+          ? "${sizeInMB.toStringAsFixed(2)} MB"
+          : "${sizeInKB.toStringAsFixed(2)} KB",
+      "modified": file.lastModifiedSync(),
+    };
+  }
+
+  Future<void> _preloadResolutions() async {
+    for (String path in widget.images) {
+      try {
+        final image = AssetImage(path);
+        final completer = Completer<ui.Image>();
+
+        image
+            .resolve(const ImageConfiguration())
+            .addListener(
+              ImageStreamListener((info, _) {
+                completer.complete(info.image);
+              }),
+            );
+
+        final img = await completer.future;
+
+        resolutionCache[path] = Size(
+          img.width.toDouble(),
+          img.height.toDouble(),
+        );
+      } catch (e) {
+        debugPrint("Resolution error: $e");
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<Size> getImageResolution(String assetPath) async {
+    // Check if resolution is already cached
+    if (resolutionCache.containsKey(assetPath)) {
+      return resolutionCache[assetPath]!;
+    }
+
+    final image = AssetImage(assetPath);
+    final completer = Completer<ui.Image>();
+
+    image
+        .resolve(const ImageConfiguration())
+        .addListener(
+          ImageStreamListener((info, _) {
+            completer.complete(info.image);
+          }),
+        );
+
+    final img = await completer.future;
+    return Size(img.width.toDouble(), img.height.toDouble());
+  }
 
   @override
   void initState() {
@@ -559,6 +767,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
     controller = PageController(initialPage: widget.initialIndex);
     _photoViewController = PhotoViewController();
+    _preloadResolutions();
   }
 
   @override
@@ -583,36 +792,138 @@ class _DetailScreenState extends State<DetailScreen> {
           itemCount: widget.images.length,
 
           itemBuilder: (context, index) {
+            final path = widget.images[index];
+
             return GestureDetector(
               onVerticalDragEnd: (details) {
                 if (details.primaryVelocity != null &&
                     details.primaryVelocity! > 300) {
-                  Navigator.pop(context); // 👈 swipe down close
+                  Navigator.pop(context);
                 }
               },
 
               onDoubleTap: () {
                 final currentScale = _photoViewController.scale ?? 1.0;
 
-                if (currentScale > 1.0) {
-                  _photoViewController.scale = 1.0;
-                } else {
-                  _photoViewController.scale = 2.5;
-                }
+                _photoViewController.scale = currentScale > 1.0 ? 1.0 : 2.5;
               },
 
-              child: PhotoView(
-                controller: _photoViewController,
-                imageProvider: ResizeImage(
-                  AssetImage(widget.images[index]),
-                  width: 1200,
-                ),
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: PhotoViewComputedScale.covered * 3,
+              child: Stack(
+                children: [
+                  PhotoView(
+                    controller: _photoViewController,
+                    imageProvider: ResizeImage(AssetImage(path), width: 800),
+                  ),
+
+                  Positioned(
+                    bottom: 20,
+                    right: 20,
+                    child: FloatingActionButton(
+                      mini: true,
+                      child: const Icon(Icons.info),
+
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          builder: (context) {
+                            // IMAGE INFO
+                            if (path.endsWith(".jpeg") ||
+                                path.endsWith(".jpg") ||
+                                path.endsWith(".png")) {
+                              return FutureBuilder<Size>(
+                                future: getImageResolution(path),
+                                builder: (context, snapshot) {
+                                  return _buildInfoSheet(
+                                    title: "Image Details",
+                                    path: path,
+                                    type: "Image",
+                                    resolution: snapshot.data,
+                                    loading:
+                                        snapshot.connectionState ==
+                                        ConnectionState.waiting,
+                                  );
+                                },
+                              );
+                            }
+
+                            // VIDEO INFO (NO FUTURE BUILDER FOR RESOLUTION)
+                            return FutureBuilder<Map<String, dynamic>>(
+                              future: getVideoInfo(path),
+                              builder: (context, snapshot) {
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  height: 220,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        "Video Details",
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 15),
+
+                                      Text("📁 Path: $path"),
+                                      const SizedBox(height: 10),
+                                      const Text("🎥 Type: Video"),
+
+                                      const SizedBox(height: 10),
+
+                                      const Text(
+                                        "⚠ Resolution not available for asset videos",
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSheet({
+    required String title,
+    required String path,
+    required String type,
+    Size? resolution,
+    bool loading = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 240,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 15),
+          Text("📁 Path: $path"),
+          const SizedBox(height: 10),
+          Text("Type: $type"),
+          const SizedBox(height: 10),
+          if (loading)
+            const CircularProgressIndicator()
+          else if (resolution != null)
+            Text(
+              "📐 Resolution: ${resolution.width.toInt()} x ${resolution.height.toInt()}",
+            ),
+        ],
       ),
     );
   }

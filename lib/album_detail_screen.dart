@@ -22,6 +22,14 @@ class AlbumDetailScreen extends StatefulWidget {
 
 class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
   late List<String> albumImages;
+  List<String> get videoList {
+    return albumImages.where((e) => e.endsWith(".mp4")).toList();
+  }
+
+  List<String> get imageList {
+    return albumImages.where((e) => !e.endsWith(".mp4")).toList();
+  }
+
   Map<String, List<String>> albums = {};
 
   Set<String> selectedItems = {};
@@ -190,16 +198,19 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
                     }
 
                     if (isVideo) {
+                      final videos = videoList;
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => VideoPlayerScreen(videoPath: media),
+                          builder: (_) => VideoDetailScreen(
+                            videoList: videos,
+                            initialIndex: videos.indexOf(media),
+                          ),
                         ),
                       );
                     } else {
-                      final imagesOnly = albumImages
-                          .where((e) => !e.endsWith(".mp4"))
-                          .toList();
+                      final imagesOnly = imageList;
 
                       Navigator.push(
                         context,

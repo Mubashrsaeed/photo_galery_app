@@ -229,8 +229,17 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                VideoPlayerScreen(videoPath: item.path),
+                            builder: (_) => VideoDetailScreen(
+                              videoList: items
+                                  .where((e) => e.type == "video")
+                                  .map((e) => e.path)
+                                  .toList(),
+                              initialIndex: items
+                                  .where((e) => e.type == "video")
+                                  .map((e) => e.path)
+                                  .toList()
+                                  .indexOf(item.path),
+                            ),
                           ),
                         );
                       }
